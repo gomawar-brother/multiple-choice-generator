@@ -135,66 +135,88 @@
       await generateQuestion(combinedInput);
     });
 
-    async function clarifyAndGenerate(inputText) {
-      generateBtn.disabled = true;
-      generateBtn.textContent = '⏳ 확인 중...';
-      hideError();
+async function clarifyAndGenerate(inputText) {
+  generateBtn.disabled = true;
+  generateBtn.textContent = '⏳ 확인 중...';
+  hideError();
 
-      try {
-        const response = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ input: inputText, mode: 'clarify' })
-        });
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: inputText, mode: 'clarify' })
+    });
 
-        const data = await response.json();
-
-        if (data.status === 'ready') {
-          await generateQuestion(inputText);
-        } else if (data.status === 'clarify') {
-          clarifyQuestion.textContent = data.question;
-          clarifySection.classList.remove('hidden');
-          generateBtn.disabled = false;
-          generateBtn.textContent = '✨ 객관식 질문 생성하기';
-        } else {
-          showError('오류: ' + (data.error || '알 수 없는 오류'));
-          generateBtn.disabled = false;
-          generateBtn.textContent = '✨ 객관식 질문 생성하기';
-        }
-      } catch (err) {
-        showError('오류: ' + err.message);
-        generateBtn.disabled = false;
-        generateBtn.textContent = '✨ 객관식 질문 생성하기';
-      }
+    // 응답 확인
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response:', text);
+      showError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      generateBtn.disabled = false;
+      generateBtn.textContent = '✨ 객관식 질문 생성하기';
+      return;
     }
+
+    const data = await response.json();
+
+    if (data.status === 'ready') {
+      await generateQuestion(inputText);
+    } else if (data.status === 'clarify') {
+      clarifyQuestion.textContent = data.question;
+      clarifySection.classList.remove('hidden');
+      generateBtn.disabled = false;
+      generateBtn.textContent = '✨ 객관식 질문 생성하기';
+    } else {
+      showError('오류: ' + (data.error || '알 수 없는 오류'));
+      generateBtn.disabled = false;
+      generateBtn.textContent = '✨ 객관식 질문 생성하기';
+    }
+  } catch (err) {
+    console.error('Error:', err);
+    showError('오류: ' + err.message);
+    generateBtn.disabled = false;
+    generateBtn.textContent = '✨ 객관식 질문 생성하기';
+  }
+}
 
     async function generateQuestion(inputText) {
-      generateBtn.disabled = true;
-      generateBtn.textContent = '⏳ 생성 중...';
-      hideError();
+  generateBtn.disabled = true;
+  generateBtn.textContent = '⏳ 생성 중...';
+  hideError();
 
-      try {
-        const response = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ input: inputText, mode: 'generate' })
-        });
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: inputText, mode: 'generate' })
+    });
 
-        const data = await response.json();
-
-        if (data.status === 'complete') {
-          displayResult(data.result);
-          resultSection.classList.remove('hidden');
-        } else {
-          showError('생성 실패: ' + (data.error || '알 수 없는 오류'));
-        }
-      } catch (err) {
-        showError('오류: ' + err.message);
-      } finally {
-        generateBtn.disabled = false;
-        generateBtn.textContent = '✨ 객관식 질문 생성하기';
-      }
+    // 응답 확인
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response:', text);
+      showError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      return;
     }
+
+    const data = await response.json();
+
+    if (data.status === 'complete') {
+      displayResult(data.result);
+      resultSection.classList.remove('hidden');
+    } else {
+      showError('생성 실패: ' + (data.error || '알 수 없는 오류'));
+    }
+  } catch (err) {
+    console.error('Error:', err);
+    showError('오류: ' + err.message);
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.textContent = '✨ 객관식 질문 생성하기';
+  }
+}
 
     function copyToClipboard(text, button) {
       navigator.clipboard.writeText(text).then(() => {
