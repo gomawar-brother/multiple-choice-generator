@@ -1,47 +1,47 @@
 export default async function handler(req, res) {
-  // CORS 설정
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+    // CORS 설정
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
 
-  const { input, mode } = req.body;
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
 
-  if (!input || !input.trim()) {
-    return res.status(400).json({ error: '입력 내용이 필요합니다.' });
-  }
+    const { input, mode } = req.body;
 
-  // API 키 확인
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('ANTHROPIC_API_KEY is not set');
-    return res.status(500).json({ error: 'API 키가 설정되지 않았습니다.' });
-  }
+    if (!input || !input.trim()) {
+        return res.status(400).json({ error: '입력 내용이 필요합니다.' });
+    }
 
-  try {
-    // 1단계: 질문 명확화 모드
-    if (mode === 'clarify') {
-      console.log('Clarifying question...');
-      
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-3-5-haiku-20241022',
-          max_tokens: 500,
-          messages: [{
-            role: 'user',
-            content: `다음 질문이 객관식 질문을 만들기에 충분히 구체적인지 판단하세요.
+    // API 키 확인
+    if (!process.env.ANTHROPIC_API_KEY) {
+        console.error('ANTHROPIC_API_KEY is not set');
+        return res.status(500).json({ error: 'API 키가 설정되지 않았습니다.' });
+    }
+
+    try {
+        // 1단계: 질문 명확화 모드
+        if (mode === 'clarify') {
+            console.log('Clarifying question...');
+
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': process.env.ANTHROPIC_API_KEY,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify({
+                    model: 'claude-3-5-haiku-20241022',
+                    max_tokens: 500,
+                    messages: [{
+                        role: 'user',
+                        content: `다음 질문이 객관식 질문을 만들기에 충분히 구체적인지 판단하세요.
 
 사용자 입력:
 ${input}
@@ -55,45 +55,45 @@ ${input}
 - "선호도" → CLARIFY: 무엇에 대한 선호도인가요?
 
 간단히 답변하세요.`
-          }]
-        })
-      });
+                    }]
+                })
+            });
 
-      const data = await response.json();
+            const data = await response.json();
 
-      if (data.content && data.content[0]) {
-        const result = data.content[0].text.trim();
-        
-        if (result === 'OK') {
-          return res.status(200).json({ status: 'ready' });
-        } else if (result.startsWith('CLARIFY:')) {
-          const question = result.replace('CLARIFY:', '').trim();
-          return res.status(200).json({ 
-            status: 'clarify', 
-            question: question 
-          });
+            if (data.content && data.content[0]) {
+                const result = data.content[0].text.trim();
+
+                if (result === 'OK') {
+                    return res.status(200).json({ status: 'ready' });
+                } else if (result.startsWith('CLARIFY:')) {
+                    const question = result.replace('CLARIFY:', '').trim();
+                    return res.status(200).json({
+                        status: 'clarify',
+                        question: question
+                    });
+                }
+            }
+
+            return res.status(200).json({ status: 'ready' });
         }
-      }
-      
-      return res.status(200).json({ status: 'ready' });
-    }
 
-    // 2단계: 질문 생성 모드
-    console.log('Generating questions...');
-    
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 1500,
-        messages: [{
-          role: 'user',
-          content: `객관식 질문을 생성하세요.
+        // 2단계: 질문 생성 모드
+        console.log('Generating questions...');
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-5-haiku-20241022',
+                max_tokens: 1500,
+                messages: [{
+                    role: 'user',
+                    content: `객관식 질문을 생성하세요.
 
 입력:
 ${input}
@@ -112,36 +112,36 @@ ${input}
 - [옵션2]
 - [옵션3]
 - 기타 (주관식)`
-        }]
-      })
-    });
+                }]
+            })
+        });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Anthropic API Error:', errorData);
-      return res.status(500).json({ 
-        error: 'API 호출 실패',
-        details: errorData 
-      });
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Anthropic API Error:', errorData);
+            return res.status(500).json({
+                error: 'API 호출 실패',
+                details: errorData
+            });
+        }
+
+        const data = await response.json();
+
+        if (data.content && data.content[0] && data.content[0].text) {
+            return res.status(200).json({
+                status: 'complete',
+                result: data.content[0].text
+            });
+        } else {
+            console.error('Unexpected response structure:', data);
+            return res.status(500).json({
+                error: '예상치 못한 응답 형식'
+            });
+        }
+    } catch (error) {
+        console.error('Exception:', error);
+        return res.status(500).json({
+            error: error.message || '서버 오류'
+        });
     }
-
-    const data = await response.json();
-
-    if (data.content && data.content[0] && data.content[0].text) {
-      return res.status(200).json({ 
-        status: 'complete',
-        result: data.content[0].text 
-      });
-    } else {
-      console.error('Unexpected response structure:', data);
-      return res.status(500).json({ 
-        error: '예상치 못한 응답 형식'
-      });
-    }
-  } catch (error) {
-    console.error('Exception:', error);
-    return res.status(500).json({ 
-      error: error.message || '서버 오류'
-    });
-  }
 }
